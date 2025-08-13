@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Word Side Popup",
+  "version": "1.0",
+  "description": "Show selected word in a side popup depending on screen space",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "contextMenus",
+    "tabs",
+    "storage"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["style.css"]
+    }
+  ],
+  "action": {
+    "default_title": "Open Options"
+  },
+  "commands": {
+    "show-word-popup": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+H"
+      },
+      "description": "Show selected word popup"
+    }
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  }
+}
