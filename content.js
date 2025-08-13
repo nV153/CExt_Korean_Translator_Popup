@@ -1,16 +1,26 @@
+
+// content.js
+// Injected content script for Korean Translator Popup extension
+// Handles popup UI, translation, definitions, and API calls
+
+// Groq API endpoint and model config
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const API_KEY = "PLACEHOLDER";
+const API_KEY = "PLACEHOLDER"; // Set your Groq API key here
 const MODEL = "llama3-70b-8192";
 
-
+// Common headers for Groq API requests
 const headers = {
-"Content-Type": "application/json",
-"Authorization": `Bearer ${API_KEY}`
+  "Content-Type": "application/json",
+  "Authorization": `Bearer ${API_KEY}`
 };
 
 
+/**
+ * Main entry: Shows the popup for the selected text, handles UI and tab logic.
+ * @param {string} selectedText - The user-selected text to process.
+ */
 function showPopup(selectedText) {
-  removePopup();
+  removePopup(); // Remove any existing popup
   if (!selectedText) return;
 
   const words = selectedText.trim().split(/\s+/);
@@ -104,7 +114,11 @@ function showPopup(selectedText) {
 
 let currentDefinitionMsg = null;
 
-async function updateWord(index) {
+  /**
+   * Updates the popup content for the current word and active tab.
+   * @param {number} index - Index of the word to display.
+   */
+  async function updateWord(index) {
   currentIndex = index;
 
   if (prevButton) prevButton.disabled = currentIndex === 0;
@@ -207,6 +221,10 @@ async function updateWord(index) {
   updateWord(0);
 
   // Outside click to close popup
+  /**
+   * Closes the popup if the user clicks outside of it.
+   * @param {MouseEvent} event
+   */
   function onClickOutside(event) {
     const popup = document.querySelector(".word-popup");
     if (popup && !popup.contains(event.target)) {
@@ -221,14 +239,27 @@ async function updateWord(index) {
 
 
 
+/**
+ * Removes all word popups from the page.
+ */
 function removePopup() {
     document.querySelectorAll(".word-popup").forEach(el => el.remove());
 }
 
+/**
+ * Updates the translation tab with the given translation.
+ * @param {string} translation
+ * @param {HTMLElement} container
+ */
 function updateTranslationTab(translation, container) {
   container.textContent = translation;
 }
 
+/**
+ * Gets the translation for a word using Groq API (to German).
+ * @param {string} word
+ * @returns {Promise<string>}
+ */
 async function getTranslation(word) {
   try {
     const translated = await translateWithGroq(word, "de");
@@ -238,6 +269,12 @@ async function getTranslation(word) {
   }
 }
 
+/**
+ * Calls Groq API to translate a word or phrase.
+ * @param {string} word
+ * @param {string} [targetLanguage="English"]
+ * @returns {Promise<string>}
+ */
 async function translateWithGroq(word, targetLanguage = "English") {
 
   const systemPrompt = `You are a translation assistant. Translate the given word or phrase into ${targetLanguage}. Provide a short and precise translation only, no explanations.`;
@@ -272,6 +309,12 @@ async function translateWithGroq(word, targetLanguage = "English") {
 }
 
 let hanja = null
+/**
+ * Updates the definition tab with data from the extension's background API.
+ * @param {string} word
+ * @param {HTMLElement} container
+ * @returns {Promise<Object|null>} - The definition message object or null on error.
+ */
 async function updateDefinitionTab(word, container) {
   container.textContent = "Loading definition...";
   try {
@@ -309,6 +352,11 @@ async function updateDefinitionTab(word, container) {
 }
 
 
+/**
+ * Updates the examples tab with 3 Korean example sentences from Groq API.
+ * @param {string} word
+ * @param {HTMLElement} container
+ */
 async function updateExamplesTab(word, container) {
   container.textContent = "Loading examples...";
 
@@ -358,6 +406,11 @@ Add a line break after each example sentence (i.e., after each difficulty level)
   }
 }
 
+/**
+ * Updates the Hanjas tab with meanings for each hanja character.
+ * @param {string} word
+ * @param {HTMLElement} container
+ */
 async function updateHanjasTab(word, container) {
   if (!hanja || hanja === "N/A") {
     container.textContent = "No Hanja available.";
@@ -391,7 +444,11 @@ async function updateHanjasTab(word, container) {
   container.appendChild(fragment);
 }
 
-// Helper function to fetch hanja meaning from Grok API
+/**
+ * Helper: Fetches the English meaning of a hanja character from Groq API.
+ * @param {string} char
+ * @returns {Promise<string>}
+ */
 async function fetchHanjaMeaningWithGrok(char) {
 
   const systemPrompt = `You are a Korean language assistant. Provide a short, precise English meaning of the following Hanja character without extra explanation.`;
@@ -420,6 +477,11 @@ async function fetchHanjaMeaningWithGrok(char) {
   return data.choices[0].message.content.trim();
 }
 
+/**
+ * Checks if a character is a hanja (CJK ideograph).
+ * @param {string} char
+ * @returns {boolean}
+ */
 function isHanjaChar(char) {
   const code = char.charCodeAt(0);
   return (

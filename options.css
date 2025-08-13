@@ -1,3 +1,10 @@
+
+/*
+  options.css
+  Styles for the extension's options/settings page
+*/
+
+/* Page background and base font */
 body {
   font-family: Arial, sans-serif;
   padding: 40px;
@@ -6,11 +13,15 @@ body {
   color: #333;
 }
 
+
+/* Main heading */
 h1 {
   font-weight: 600;
   margin-bottom: 20px;
 }
 
+
+/* Button styling */
 button {
   font-size: 16px;
   padding: 10px 20px;
@@ -22,17 +33,23 @@ button {
   transition: background-color 0.3s ease;
 }
 
+
+/* Button hover effect (except disabled) */
 button:hover:not(:disabled) {
   background-color: #0078d4;
   color: white;
   border-color: #0078d4;
 }
 
+
+/* Disabled button style */
 button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
 
+
+/* Container for displaying saved words list */
 #saved-words-container {
   margin-top: 30px;
   max-height: 400px;
