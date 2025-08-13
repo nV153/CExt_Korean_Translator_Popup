@@ -1,3 +1,58 @@
+/* Options page styles */
+.options-section {
+    background: #f8fafd;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    padding: 18px 24px 12px 24px;
+    margin-bottom: 24px;
+    font-size: 15px;
+    max-width: 540px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.options-section h3 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-size: 20px;
+    color: #0078d4;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.options-section label {
+    display: inline-block;
+    margin-bottom: 8px;
+    margin-right: 18px;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.options-section input[type="checkbox"] {
+    accent-color: #0078d4;
+    width: 16px;
+    height: 16px;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.saved-word-card {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    padding: 14px 18px;
+    margin-bottom: 18px;
+    font-size: 15px;
+    max-width: 520px;
+    margin-left: auto;
+    margin-right: auto;
+    border: 1px solid #e3e8ee;
+}
+
+.saved-word-card strong {
+    color: #0078d4;
+    font-weight: 600;
+}
 
 /*
     style.css
@@ -196,4 +251,29 @@
 .save-word-btn:hover {
     background-color: #005a9e;
 }
+
+.save-word-btn:disabled {
+    background: #ccc !important;
+    color: #888 !important;
+    cursor: not-allowed !important;
+    opacity: 0.7;
+}
+
+/* Speech bubble for save feedback */
+.save-bubble {
+    position: absolute;
+    right: 10px;
+    top: -32px;
+    background: #333;
+    color: #fff;
+    padding: 6px 16px;
+    border-radius: 16px;
+    font-size: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    z-index: 10001;
+    pointer-events: none;
+    opacity: 0.95;
+    transition: opacity 0.3s;
+}
+
 

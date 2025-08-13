@@ -4,9 +4,10 @@
 // Handles popup UI, translation, definitions, and API calls
 
 // Groq API endpoint and model config
-const API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const API_KEY = "PLACEHOLDER"; // Set your Groq API key here
-const MODEL = "llama3-70b-8192";
+import { API_URL, API_KEY, MODEL } from './config.js';
+
+console.log(API_URL, MODEL);
+
 
 // Common headers for Groq API requests
 const headers = {
@@ -56,23 +57,23 @@ function showPopup(selectedText) {
 
     const saveButtonHTML = `<button id="save-word-btn" class="save-word-btn" title="Save this word">💾 Save</button>`;
 
-    popup.innerHTML = `
-        ${dropdownHTML}
-        ${arrowsHTML}
-        ${saveButtonHTML}
-        <div class="tabs">
-            <button class="tab-button active" data-tab="definition">Definition</button>
-            <button class="tab-button" data-tab="examples">Examples</button>
-            <button class="tab-button" data-tab="hanjas">Hanjas / 한자</button>
-            <button class="tab-button" data-tab="translation">Translation</button>
-        </div>
-        <div class="tab-contents">
-            <div class="tab-content active" id="definition">Definition content coming soon...</div>
-            <div class="tab-content" id="examples">Examples content coming soon...</div>
-            <div class="tab-content" id="hanjas">Loading hanjas...</div>
-            <div class="tab-content" id="translation">Loading translation...</div>
-        </div>
-    `;
+  popup.innerHTML = `
+    ${dropdownHTML}
+    ${arrowsHTML}
+    ${saveButtonHTML}
+    <div class="tabs">
+      <button class="tab-button active" data-tab="definition">Definition</button>
+      <button class="tab-button" data-tab="examples">Examples</button>
+      <button class="tab-button" data-tab="hanjas">Hanjas / 한자</button>
+      <button class="tab-button" data-tab="translation">Translation</button>
+    </div>
+    <div class="tab-contents">
+      <div class="tab-content active" id="definition">Definition content coming soon...</div>
+      <div class="tab-content" id="examples">Examples content coming soon...</div>
+      <div class="tab-content" id="hanjas">Loading hanjas...</div>
+      <div class="tab-content" id="translation">Loading translation...</div>
+    </div>
+  `;
 
   // Position popup as before
   const viewportWidth = window.innerWidth;
@@ -142,6 +143,16 @@ let currentDefinitionMsg = null;
   } else if (activeTabId === "hanjas") {
     updateHanjasTab(words[currentIndex], activeContent);
   }
+
+  // Enable/disable save button based on whether this word is already saved
+  if (saveButton) {
+    chrome.storage.local.get({ savedWords: [] }, (result) => {
+      const savedWords = result.savedWords || [];
+      const wordToCheck = words[currentIndex];
+      const alreadySaved = savedWords.some(w => w.word === wordToCheck);
+      saveButton.disabled = alreadySaved;
+    });
+  }
 }
 
   // Arrow handlers
@@ -190,32 +201,73 @@ let currentDefinitionMsg = null;
   if (saveButton) {
     saveButton.addEventListener("click", () => {
       const wordToSave = words[currentIndex];
-      const definition = currentDefinitionMsg?.Endef || "";
+      const defMsg = currentDefinitionMsg || {};
+      const title = defMsg.Endef || "";
 
-      alert(`Saving word: ${wordToSave} — Definition: ${definition}`);
-
-      chrome.storage.local.get({ savedWords: [] }, (result) => {
+      // Get user's save settings from storage
+      chrome.storage.local.get({
+        saveSettings: {
+          importance: true,
+          hanja: true,
+          pronunciation: true,
+          partOfSpeech: true,
+          meanings: true
+        },
+        savedWords: []
+      }, (result) => {
+        const settings = result.saveSettings;
         let savedWords = result.savedWords;
 
-        // Kein Duplikat-Check, einfach speichern
-        savedWords.push({
+        const wordData = {
           word: wordToSave,
-          definition: definition
-        });
+          title: title,
+          definition: defMsg.Endef || ""
+        };
+        if (settings.importance) wordData.importance = defMsg.Importance || "N/A";
+        if (settings.hanja) wordData.hanja = defMsg.Hanja || "N/A";
+        if (settings.pronunciation) wordData.pronunciation = defMsg.Pronun || "N/A";
+        if (settings.partOfSpeech) wordData.partOfSpeech = defMsg.PartSpeech || "N/A";
+        if (settings.meanings) wordData.meanings = defMsg.Meanings || "No definition available.";
+
+        const alreadySaved = savedWords.some(w => w.word === wordToSave);
+        if (alreadySaved) {
+          showSaveBubble("Already saved!");
+          saveButton.disabled = true;
+          return;
+        }
+
+        savedWords.push(wordData);
 
         chrome.storage.local.set({ savedWords }, () => {
           if (chrome.runtime.lastError) {
             console.error("Error saving word:", chrome.runtime.lastError);
-            alert("Failed to save word, try again.");
+            showSaveBubble("Failed to save!");
           } else {
-            alert(`Saved "${wordToSave}" successfully.`);
+            showSaveBubble("Saved!");
+            saveButton.disabled = true;
           }
         });
       });
     });
-  } else {
-    console.error("Save button not found!");
   }
+
+    // Helper: show a temporary speech bubble above the save button
+    function showSaveBubble(text) {
+      // Remove any existing bubble
+      const oldBubble = document.getElementById("save-bubble");
+      if (oldBubble) oldBubble.remove();
+
+      const bubble = document.createElement("div");
+      bubble.id = "save-bubble";
+      bubble.className = "save-bubble";
+      bubble.textContent = text;
+      saveButton.parentElement.appendChild(bubble);
+
+      setTimeout(() => {
+        bubble.style.opacity = "0";
+        setTimeout(() => bubble.remove(), 400);
+      }, 1200);
+    }
 
 
   updateWord(0);
@@ -332,7 +384,6 @@ async function updateDefinitionTab(word, container) {
 
     const definitionHTML = `
       <strong>Title:</strong> ${msg.Title || word}<br>
-      <strong>TOPIK Level:</strong> ${msg.Topik || "N/A"}<br>
       <strong>Importance:</strong> ${msg.Importance || "N/A"}<br>
       <strong>Hanja:</strong> ${hanjaChars.length > 0 ? hanjaChars.join(' ') : "N/A"}<br>
       <strong>English Definition:</strong> ${msg.Endef || "N/A"}<br>
