@@ -1,3 +1,116 @@
+/* ===================== OPTIONS PAGE STYLES ===================== */
+
+.options-section {
+    background: #f8f9fa;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    padding: 18px 24px;
+    margin-bottom: 24px;
+    font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
+}
+
+.options-section h3 {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #0078d4;
+    letter-spacing: 0.5px;
+}
+
+.options-section label {
+    display: inline-block;
+    margin: 8px 18px 8px 0;
+    font-size: 15px;
+    color: #222;
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+.options-section label:hover {
+    background: #e6f0fa;
+}
+
+.options-section input[type="checkbox"] {
+    accent-color: #0078d4;
+    width: 18px;
+    height: 18px;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+#saved-words-container {
+    margin-top: 18px;
+    min-height: 120px;
+}
+
+.saved-word-card {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    padding: 18px 22px;
+    margin: 0 auto 18px auto;
+    max-width: 480px;
+    font-size: 16px;
+    color: #222;
+    border: 1px solid #e3e3e3;
+    transition: box-shadow 0.2s;
+}
+.saved-word-card:hover {
+    box-shadow: 0 4px 16px rgba(0,120,212,0.08);
+    border-color: #b3d6f6;
+}
+
+/* Navigation arrows for options tab */
+#prev-word, #next-word {
+    background: #f0f4f8;
+    border: 1px solid #b3d6f6;
+    color: #0078d4;
+    font-weight: 600;
+    border-radius: 6px;
+    padding: 6px 18px;
+    font-size: 15px;
+    margin: 0 4px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+#prev-word:disabled, #next-word:disabled {
+    background: #e3e3e3;
+    color: #aaa;
+    border-color: #e3e3e3;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+#prev-word:hover:not(:disabled), #next-word:hover:not(:disabled) {
+    background: #e6f0fa;
+    border-color: #0078d4;
+}
+
+/* Export button and show-saved-btn */
+#export-btn, #show-saved-btn {
+    background: #0078d4;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 22px;
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 8px 18px 0;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,120,212,0.08);
+    transition: background 0.2s;
+}
+#export-btn:hover, #show-saved-btn:hover {
+    background: #005a9e;
+}
+
+/* Responsive tweaks for options page */
+@media (max-width: 600px) {
+    .options-section, .saved-word-card {
+        padding: 12px 8px;
+        max-width: 98vw;
+    }
+}
 
 /*
     style.css

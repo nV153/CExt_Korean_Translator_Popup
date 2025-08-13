@@ -1,18 +1,16 @@
-
 // content.js
 // Injected content script for Korean Translator Popup extension
 // Handles popup UI, translation, definitions, and API calls
 
 // Groq API endpoint and model config
-const API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const API_KEY = "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"; // Set your Groq API key here
-const MODEL = "llama3-70b-8192";
+import { API_URL, API_KEY, MODEL } from "./config.js";
 
 // Common headers for Groq API requests
 const headers = {
   "Content-Type": "application/json",
   "Authorization": `Bearer ${API_KEY}`
 };
+
 
 
 /**
@@ -328,6 +326,7 @@ async function getTranslation(word) {
     const translated = await translateWithGroq(word, "de");
     return translated;
   } catch (err) {
+    showErrorBubble("Translation error: Groq service unavailable");
     return "Error: " + err;
   }
 }
@@ -466,6 +465,7 @@ Add a line break after each example sentence (i.e., after each difficulty level)
 
   } catch (error) {
     console.error("Error fetching examples with Groq:", error);
+    showErrorBubble("Groq service unavailable for examples");
     container.textContent = "Error loading examples";
   }
 }
@@ -536,19 +536,25 @@ async function fetchHanjaMeaningWithGrok(char) {
     temperature: 0.3
   };
 
-  const response = await fetch(API_URL, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body)
-  });
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body)
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`API error ${response.status}: ${errorText}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API error ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content.trim();
+  } catch (error) {
+    console.error("Error fetching hanja meaning with Groq:", error);
+    showErrorBubble("Groq service unavailable for hanja");
+    return "(error loading meaning)";
   }
-
-  const data = await response.json();
-  return data.choices[0].message.content.trim();
 }
 
 /**
@@ -568,6 +574,29 @@ function isHanjaChar(char) {
   );
 }
 
+// Helper: show a temporary error bubble above the popup
+function showErrorBubble(text) {
+  // Remove any existing bubble
+  const oldBubble = document.getElementById("error-bubble");
+  if (oldBubble) oldBubble.remove();
+
+  const popup = document.querySelector(".word-popup");
+  if (!popup) return;
+
+  const bubble = document.createElement("div");
+  bubble.id = "error-bubble";
+  bubble.className = "save-bubble";
+  bubble.style.background = "#d32f2f";
+  bubble.style.color = "#fff";
+  bubble.textContent = text;
+  bubble.style.top = "-60px";
+  popup.appendChild(bubble);
+
+  setTimeout(() => {
+    bubble.style.opacity = "0";
+    setTimeout(() => bubble.remove(), 600);
+  }, 1800);
+}
 
 
 window.showPopup = showPopup;

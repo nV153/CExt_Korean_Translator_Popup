@@ -79,7 +79,10 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      words.forEach(wordObj => {
+      let currentIndex = 0;
+
+      function renderWord(index) {
+        const wordObj = words[index];
         const {
           word,
           title,
@@ -109,11 +112,31 @@ document.addEventListener("DOMContentLoaded", () => {
         if (settings.partOfSpeech && partOfSpeech !== undefined) displayHtml += `<strong>Part of Speech:</strong> ${partOfSpeech}<br>`;
         if (settings.meanings && meanings !== undefined) displayHtml += `<strong>Meanings:</strong> ${meanings}`;
 
-        const div = document.createElement("div");
-        div.className = "saved-word-card";
-        div.innerHTML = displayHtml;
-        container.appendChild(div);
-      });
+        // Navigation arrows
+        let navHtml = `<div style="margin:10px 0;">
+          <button id="prev-word" ${index === 0 ? "disabled" : ""}>&larr; Prev</button>
+          <span style="margin:0 12px;">${index + 1} / ${words.length}</span>
+          <button id="next-word" ${index === words.length - 1 ? "disabled" : ""}>Next &rarr;</button>
+        </div>`;
+
+        container.innerHTML = navHtml + `<div class="saved-word-card">${displayHtml}</div>`;
+
+        // Add event listeners for arrows
+        container.querySelector("#prev-word").addEventListener("click", () => {
+          if (currentIndex > 0) {
+            currentIndex--;
+            renderWord(currentIndex);
+          }
+        });
+        container.querySelector("#next-word").addEventListener("click", () => {
+          if (currentIndex < words.length - 1) {
+            currentIndex++;
+            renderWord(currentIndex);
+          }
+        });
+      }
+
+      renderWord(currentIndex);
     });
   });
 
