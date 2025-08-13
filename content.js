@@ -4,10 +4,9 @@
 // Handles popup UI, translation, definitions, and API calls
 
 // Groq API endpoint and model config
-import { API_URL, API_KEY, MODEL } from './config.js';
-
-console.log(API_URL, MODEL);
-
+const API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const API_KEY = "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"; // Set your Groq API key here
+const MODEL = "llama3-70b-8192";
 
 // Common headers for Groq API requests
 const headers = {
@@ -120,40 +119,36 @@ let currentDefinitionMsg = null;
    * @param {number} index - Index of the word to display.
    */
   async function updateWord(index) {
-  currentIndex = index;
+    currentIndex = index;
 
-  if (prevButton) prevButton.disabled = currentIndex === 0;
-  if (nextButton) nextButton.disabled = currentIndex === words.length - 1;
-  if (wordIndexSpan) wordIndexSpan.textContent = `${currentIndex + 1} / ${words.length}`;
+    if (prevButton) prevButton.disabled = currentIndex === 0;
+    if (nextButton) nextButton.disabled = currentIndex === words.length - 1;
+    if (wordIndexSpan) wordIndexSpan.textContent = `${currentIndex + 1} / ${words.length}`;
+    if (dropdown && parseInt(dropdown.value, 10) !== currentIndex) dropdown.value = currentIndex;
 
-  if (dropdown && parseInt(dropdown.value, 10) !== currentIndex) {
-    dropdown.value = currentIndex;
+    const activeTab = popup.querySelector(".tab-button.active");
+    const activeTabId = activeTab ? activeTab.getAttribute("data-tab") : "definition";
+    const activeContent = popup.querySelector(`#${activeTabId}`);
+
+    if (activeTabId === "translation") {
+      try {
+        const translation = await getTranslation(words[currentIndex]);
+        fullTranslation = translation;
+        updateTranslationTab(fullTranslation, activeContent);
+      } catch (err) {
+        activeContent.textContent = "Error loading translation.";
+      }
+    } else if (activeTabId === "definition") {
+      currentDefinitionMsg = await updateDefinitionTab(words[currentIndex], activeContent);
+    } else if (activeTabId === "examples") {
+      updateExamplesTab(words[currentIndex], activeContent);
+    } else if (activeTabId === "hanjas") {
+      // Always fetch definition before hanja tab
+      const definitionMsg = currentDefinitionMsg || await updateDefinitionTab(words[currentIndex], activeContent);
+      currentDefinitionMsg = definitionMsg;
+      updateHanjasTab(words[currentIndex], activeContent, definitionMsg);
+    }
   }
-
-  const activeTab = popup.querySelector(".tab-button.active");
-  const activeTabId = activeTab ? activeTab.getAttribute("data-tab") : "definition";
-  const activeContent = popup.querySelector(`#${activeTabId}`);
-
-  if (activeTabId === "translation") {
-    activeContent.textContent = fullTranslation;
-  } else if (activeTabId === "definition") {
-    currentDefinitionMsg = await updateDefinitionTab(words[currentIndex], activeContent);  // await entire msg
-  } else if (activeTabId === "examples") {
-    updateExamplesTab(words[currentIndex], activeContent);
-  } else if (activeTabId === "hanjas") {
-    updateHanjasTab(words[currentIndex], activeContent);
-  }
-
-  // Enable/disable save button based on whether this word is already saved
-  if (saveButton) {
-    chrome.storage.local.get({ savedWords: [] }, (result) => {
-      const savedWords = result.savedWords || [];
-      const wordToCheck = words[currentIndex];
-      const alreadySaved = savedWords.some(w => w.word === wordToCheck);
-      saveButton.disabled = alreadySaved;
-    });
-  }
-}
 
   // Arrow handlers
   if (prevButton) {
@@ -199,7 +194,7 @@ let currentDefinitionMsg = null;
   console.log("currentDefinitionMsg at save:", currentDefinitionMsg);
   const saveButton = popup.querySelector("#save-word-btn");
   if (saveButton) {
-    saveButton.addEventListener("click", () => {
+    saveButton.addEventListener("click", async () => {
       const wordToSave = words[currentIndex];
       const defMsg = currentDefinitionMsg || {};
       const title = defMsg.Endef || "";
@@ -211,16 +206,18 @@ let currentDefinitionMsg = null;
           hanja: true,
           pronunciation: true,
           partOfSpeech: true,
-          meanings: true
+          meanings: true,
+          hanjaMeanings: false // default for new feature
         },
         savedWords: []
-      }, (result) => {
+      }, async (result) => {
         const settings = result.saveSettings;
         let savedWords = result.savedWords;
 
         const wordData = {
           word: wordToSave,
           title: title,
+          topik: defMsg.Topik || "N/A",
           definition: defMsg.Endef || ""
         };
         if (settings.importance) wordData.importance = defMsg.Importance || "N/A";
@@ -228,6 +225,20 @@ let currentDefinitionMsg = null;
         if (settings.pronunciation) wordData.pronunciation = defMsg.Pronun || "N/A";
         if (settings.partOfSpeech) wordData.partOfSpeech = defMsg.PartSpeech || "N/A";
         if (settings.meanings) wordData.meanings = defMsg.Meanings || "No definition available.";
+
+        // Save hanja meanings if enabled
+        if (settings.hanjaMeanings && defMsg.Hanja && defMsg.Hanja !== "N/A") {
+          // Only keep real hanja characters
+          const hanjaChars = defMsg.Hanja.split('').filter(isHanjaChar);
+          if (hanjaChars.length > 0) {
+            // Fetch all meanings in parallel
+            const hanjaMeanings = await Promise.all(
+              hanjaChars.map(char => fetchHanjaMeaningWithGrok(char).catch(() => "(error loading meaning)"))
+            );
+            // Save as array of {char, meaning}
+            wordData.hanjaMeanings = hanjaChars.map((char, i) => ({ char, meaning: hanjaMeanings[i] }));
+          }
+        }
 
         const alreadySaved = savedWords.some(w => w.word === wordToSave);
         if (alreadySaved) {
@@ -380,10 +391,12 @@ async function updateDefinitionTab(word, container) {
     }
 
     const msg = response.data.message || {};
+    // Only keep real hanja characters
     const hanjaChars = (msg.Hanja || "").split('').filter(isHanjaChar);
 
     const definitionHTML = `
       <strong>Title:</strong> ${msg.Title || word}<br>
+      <strong>TOPIK Level:</strong> ${msg.Topik || "N/A"}<br>
       <strong>Importance:</strong> ${msg.Importance || "N/A"}<br>
       <strong>Hanja:</strong> ${hanjaChars.length > 0 ? hanjaChars.join(' ') : "N/A"}<br>
       <strong>English Definition:</strong> ${msg.Endef || "N/A"}<br>
@@ -462,37 +475,47 @@ Add a line break after each example sentence (i.e., after each difficulty level)
  * @param {string} word
  * @param {HTMLElement} container
  */
-async function updateHanjasTab(word, container) {
-  if (!hanja || hanja === "N/A") {
+async function updateHanjasTab(word, container, definitionMsg) {
+  const hanjaValue = definitionMsg?.Hanja || "N/A";
+  if (!hanjaValue || hanjaValue === "N/A") {
     container.textContent = "No Hanja available.";
     return;
   }
 
-  const hanjaChars = hanja.split('');
+  // Only keep real hanja characters
+  const hanjaChars = hanjaValue.split('').filter(isHanjaChar);
+  if (hanjaChars.length === 0) {
+    container.textContent = "No valid Hanja characters found.";
+    return;
+  }
 
-  // Start with the heading and a line break before the hanja list
+  // Start with heading
   container.innerHTML = `<strong>Hanja / 한자:</strong><br><br>`;
 
   const fragment = document.createDocumentFragment();
 
-  for (const char of hanjaChars) {
+  // Create all <p> elements first
+  const ps = hanjaChars.map(char => {
     const p = document.createElement("p");
     p.textContent = `${char} = Loading meaning...`;
     fragment.appendChild(p);
-
-    // Add a <br> after each meaning line for spacing
-    const br = document.createElement("br");
-    fragment.appendChild(br);
-
-    try {
-      const meaning = await fetchHanjaMeaningWithGrok(char);
-      p.textContent = `${char} = ${meaning}`;
-    } catch (err) {
-      p.textContent = `${char} = (error loading meaning)`;
-    }
-  }
+    fragment.appendChild(document.createElement("br"));
+    return p;
+  });
 
   container.appendChild(fragment);
+
+  // Fetch all meanings in parallel
+  const promises = hanjaChars.map(char => fetchHanjaMeaningWithGrok(char)
+    .catch(() => "(error loading meaning)")
+  );
+
+  const meanings = await Promise.all(promises);
+
+  // Update <p> elements when each meaning arrives
+  ps.forEach((p, i) => {
+    p.textContent = `${hanjaChars[i]} = ${meanings[i]}`;
+  });
 }
 
 /**

@@ -11,13 +11,14 @@ document.addEventListener("DOMContentLoaded", () => {
   filterDiv.id = "display-attributes";
   filterDiv.className = "options-section";
   filterDiv.innerHTML = `
-    <h3>Word Attributes</h3>
-    <p>Control which attributes are <strong>shown</strong> and <strong>saved</strong>:</p>
-    <label><input type="checkbox" id="show-importance"> Importance</label>
-    <label><input type="checkbox" id="show-hanja" style="margin-left:10px;"> Hanja</label>
-    <label><input type="checkbox" id="show-pronunciation" style="margin-left:10px;"> Pronunciation</label>
-    <label><input type="checkbox" id="show-partOfSpeech" style="margin-left:10px;"> Part of Speech</label>
-    <label><input type="checkbox" id="show-meanings" style="margin-left:10px;"> Meanings</label>
+  <h3>Word Attributes</h3>
+  <p>Control which attributes are <strong>shown</strong> and <strong>saved</strong>:</p>
+  <label><input type="checkbox" id="show-importance"> Importance</label>
+  <label><input type="checkbox" id="show-hanja" style="margin-left:10px;"> Hanja</label>
+  <label><input type="checkbox" id="show-hanjaMeanings" style="margin-left:10px;"> Hanja Meanings</label>
+  <label><input type="checkbox" id="show-pronunciation" style="margin-left:10px;"> Pronunciation</label>
+  <label><input type="checkbox" id="show-partOfSpeech" style="margin-left:10px;"> Part of Speech</label>
+  <label><input type="checkbox" id="show-meanings" style="margin-left:10px;"> Meanings</label>
   `;
   container.parentElement.insertBefore(filterDiv, container);
 
@@ -25,6 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const defaultSettings = {
     importance: true,
     hanja: true,
+    hanjaMeanings: false,
     pronunciation: true,
     partOfSpeech: true,
     meanings: true
@@ -35,17 +37,19 @@ document.addEventListener("DOMContentLoaded", () => {
     saveSettings: defaultSettings
   }, (result) => {
     const settings = result.saveSettings;
-    document.getElementById("show-importance").checked = settings.importance;
-    document.getElementById("show-hanja").checked = settings.hanja;
-    document.getElementById("show-pronunciation").checked = settings.pronunciation;
-    document.getElementById("show-partOfSpeech").checked = settings.partOfSpeech;
-    document.getElementById("show-meanings").checked = settings.meanings;
+  document.getElementById("show-importance").checked = settings.importance;
+  document.getElementById("show-hanja").checked = settings.hanja;
+  document.getElementById("show-hanjaMeanings").checked = settings.hanjaMeanings;
+  document.getElementById("show-pronunciation").checked = settings.pronunciation;
+  document.getElementById("show-partOfSpeech").checked = settings.partOfSpeech;
+  document.getElementById("show-meanings").checked = settings.meanings;
   });
 
   // Save settings when checkboxes change
   [
     "show-importance",
     "show-hanja",
+    "show-hanjaMeanings",
     "show-pronunciation",
     "show-partOfSpeech",
     "show-meanings"
@@ -54,6 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const newSettings = {
         importance: document.getElementById("show-importance").checked,
         hanja: document.getElementById("show-hanja").checked,
+        hanjaMeanings: document.getElementById("show-hanjaMeanings").checked,
         pronunciation: document.getElementById("show-pronunciation").checked,
         partOfSpeech: document.getElementById("show-partOfSpeech").checked,
         meanings: document.getElementById("show-meanings").checked
@@ -78,18 +83,27 @@ document.addEventListener("DOMContentLoaded", () => {
         const {
           word,
           title,
+          topik,
           importance,
           hanja,
           definition,
           pronunciation,
           partOfSpeech,
-          meanings
+          meanings,
+          hanjaMeanings
         } = wordObj;
 
         let displayHtml = `<strong>Word:</strong> ${word || ""}<br>`;
         displayHtml += `<strong>Title:</strong> ${title || word || ""}<br>`;
+        displayHtml += `<strong>TOPIK Level:</strong> ${topik || "N/A"}<br>`;
         if (settings.importance && importance !== undefined) displayHtml += `<strong>Importance:</strong> ${importance}<br>`;
         if (settings.hanja && hanja !== undefined) displayHtml += `<strong>Hanja:</strong> ${hanja}<br>`;
+        if (settings.hanjaMeanings && Array.isArray(hanjaMeanings) && hanjaMeanings.length > 0) {
+          displayHtml += `<strong>Hanja Meanings:</strong><br>`;
+          hanjaMeanings.forEach(({char, meaning}) => {
+            displayHtml += `&nbsp;&nbsp;${char}: ${meaning}<br>`;
+          });
+        }
         displayHtml += `<strong>English Definition:</strong> ${definition || "N/A"}<br>`;
         if (settings.pronunciation && pronunciation !== undefined) displayHtml += `<strong>Pronunciation:</strong> ${pronunciation}<br>`;
         if (settings.partOfSpeech && partOfSpeech !== undefined) displayHtml += `<strong>Part of Speech:</strong> ${partOfSpeech}<br>`;
