@@ -2,6 +2,25 @@
 // Script for the extension's options/settings page
 
 document.addEventListener("DOMContentLoaded", () => {
+  // Render export history on page load
+  function renderExportHistory() {
+    chrome.storage.local.get({ exportHistory: [] }, (res) => {
+      const list = document.getElementById("export-history-list");
+      if (!list) return;
+      list.innerHTML = "";
+      if (!res.exportHistory || res.exportHistory.length === 0) {
+        list.innerHTML = "<li>No exports yet.</li>";
+        return;
+      }
+      res.exportHistory.slice().reverse().forEach(h => {
+        const li = document.createElement("li");
+        li.textContent = `${h.filename} (${h.timestamp}, ${h.count} words)`;
+        list.appendChild(li);
+      });
+    });
+  }
+
+  renderExportHistory();
   const showWordsBtn = document.getElementById("show-saved-btn");
   const exportWordsBtn = document.getElementById("export-btn");
   const container = document.getElementById("saved-words-container");
