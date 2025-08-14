@@ -5,6 +5,32 @@ document.addEventListener("DOMContentLoaded", () => {
   const showWordsBtn = document.getElementById("show-saved-btn");
   const exportWordsBtn = document.getElementById("export-btn");
   const container = document.getElementById("saved-words-container");
+  // Add export history container FIRST
+  const exportHistoryDiv = document.createElement("div");
+  exportHistoryDiv.id = "export-history";
+  exportHistoryDiv.className = "options-section";
+  exportHistoryDiv.innerHTML = `<h3>Export History</h3><ul id="export-history-list"></ul>`;
+  container.parentElement.insertBefore(exportHistoryDiv, container.nextSibling);
+
+  // THEN add export history toggle button
+  const showHistoryBtn = document.createElement("button");
+  showHistoryBtn.id = "show-history-btn";
+  showHistoryBtn.textContent = "Show Export History";
+  showHistoryBtn.style.marginBottom = "12px";
+  exportHistoryDiv.parentElement.insertBefore(showHistoryBtn, exportHistoryDiv);
+  exportHistoryDiv.style.display = "none";
+
+  showHistoryBtn.addEventListener("click", () => {
+    if (exportHistoryDiv.style.display === "none") {
+      exportHistoryDiv.style.display = "block";
+      showHistoryBtn.textContent = "Hide Export History";
+    } else {
+      exportHistoryDiv.style.display = "none";
+      showHistoryBtn.textContent = "Show Export History";
+    }
+  });
+
+
 
   // Create filter box for display and save settings
   const filterDiv = document.createElement("div");
@@ -128,7 +154,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Placeholder for export feature
   exportWordsBtn.addEventListener("click", () => {
-    // Get user-selected fields
+  // Get user-selected fields
     const fields = [];
     if (document.getElementById("show-importance").checked) fields.push("importance");
     if (document.getElementById("show-hanja").checked) fields.push("hanja");
@@ -187,7 +213,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const a = document.createElement("a");
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       a.href = url;
-      a.download = `exported_words_${timestamp}.csv`;
+  const filename = `exported_words_${timestamp}.csv`;
+  a.download = filename;
       document.body.appendChild(a);
       a.click();
       setTimeout(() => {
@@ -200,8 +227,44 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!w.exported) w.exported = true;
         return w;
       });
-      chrome.storage.local.set({ savedWords: words });
+      // Save export history
+      chrome.storage.local.get({ exportHistory: [] }, (res) => {
+        const history = res.exportHistory || [];
+        history.push({ filename, timestamp: new Date().toLocaleString(), count: unexported.length });
+        chrome.storage.local.set({ savedWords: words, exportHistory: history }, () => {
+          renderExportHistory();
+        });
+      });
     });
+
+    // Helper: escape quotes and commas for CSV
+    function csvEscape(val) {
+      if (typeof val !== "string") val = String(val);
+      if (val.includes('"') || val.includes(",") || val.includes("\n")) {
+        return '"' + val.replace(/"/g, '""') + '"';
+      }
+      return val;
+    }
+
+    // Helper: render export history
+    function renderExportHistory() {
+      chrome.storage.local.get({ exportHistory: [] }, (res) => {
+        const list = document.getElementById("export-history-list");
+        if (!list) return;
+        list.innerHTML = "";
+        if (!res.exportHistory || res.exportHistory.length === 0) {
+          list.innerHTML = "<li>No exports yet.</li>";
+          return;
+        }
+        res.exportHistory.slice().reverse().forEach(h => {
+          const li = document.createElement("li");
+          li.textContent = `${h.filename} (${h.timestamp}, ${h.count} words)`;
+          list.appendChild(li);
+        });
+      });
+    }
+
+    renderExportHistory();
 
     // Helper: escape quotes and commas for CSV
     function csvEscape(val) {
