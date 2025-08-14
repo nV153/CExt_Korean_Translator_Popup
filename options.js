@@ -126,75 +126,90 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-exportWordsBtn.addEventListener("click", () => {
-  // Get saved words and user settings
-  chrome.storage.local.get({ savedWords: [], saveSettings: defaultSettings }, (result) => {
-    const words = result.savedWords;
-    const settings = result.saveSettings;
-
-    // Filter only unexported words
-    const newWords = words.filter(w => !w.exported);
-    if (newWords.length === 0) {
-      alert("No new words to export.");
-      return;
+  // Placeholder for export feature
+  exportWordsBtn.addEventListener("click", () => {
+    // Get user-selected fields
+    const fields = [];
+    if (document.getElementById("show-importance").checked) fields.push("importance");
+    if (document.getElementById("show-hanja").checked) fields.push("hanja");
+    if (document.getElementById("show-pronunciation").checked) fields.push("pronunciation");
+    if (document.getElementById("show-partOfSpeech").checked) fields.push("partOfSpeech");
+    if (document.getElementById("show-meanings").checked) fields.push("meanings");
+    // hanjaMeanings support (if present)
+    if (document.getElementById("show-hanjaMeanings")) {
+      if (document.getElementById("show-hanjaMeanings").checked) fields.push("hanjaMeanings");
     }
 
-    // Prepare CSV header based on selected settings
-    const headers = ["Word", "Translation"];
-    if (settings.hanja) headers.push("Hanja");
-    if (settings.hanjaMeanings) headers.push("Hanja Meanings");
-    if (settings.pronunciation) headers.push("Pronunciation");
-    if (settings.partOfSpeech) headers.push("Part of Speech");
-    if (settings.meanings) headers.push("Meanings");
-    if (settings.topik) headers.push("TOPIK");
-    if (settings.importance) headers.push("Importance");
-
-    const csvRows = [headers.join(",")];
-
-    newWords.forEach(w => {
-      const row = [];
-
-      // Word
-      row.push(`"${(w.word || "").replace(/"/g, '""')}"`);
-
-      // Translation/definition (mandatory, add placeholder if missing)
-      row.push(`"${(w.definition || "Translation Error").replace(/"/g, '""')}"`);
-
-      // Optional fields according to settings
-      if (settings.hanja) row.push(`"${(w.hanja || "").replace(/"/g, '""')}"`);
-      if (settings.hanjaMeanings) {
-        const hanjaMeaningsStr = Array.isArray(w.hanjaMeanings)
-          ? w.hanjaMeanings.map(h => `${h.char}:${h.meaning}`).join("; ")
-          : "";
-        row.push(`"${hanjaMeaningsStr.replace(/"/g, '""')}"`);
+    chrome.storage.local.get({ savedWords: [] }, (result) => {
+      let words = result.savedWords;
+      // Only export unexported words
+      const unexported = words.filter(w => !w.exported);
+      if (unexported.length === 0) {
+        alert("No new words to export.");
+        return;
       }
-      if (settings.pronunciation) row.push(`"${(w.pronunciation || "").replace(/"/g, '""')}"`);
-      if (settings.partOfSpeech) row.push(`"${(w.partOfSpeech || "").replace(/"/g, '""')}"`);
-      if (settings.meanings) {
-        const meaningsStr = Array.isArray(w.meanings) ? w.meanings.join("; ") : w.meanings || "";
-        row.push(`"${meaningsStr.replace(/"/g, '""')}"`);
-      }
-      if (settings.topik) row.push(`"${(w.topik || "").replace(/"/g, '""')}"`);
-      if (settings.importance) row.push(`"${(w.importance || "").replace(/"/g, '""')}"`);
 
-      csvRows.push(row.join(","));
+      // CSV header: word (front), then selected fields (back)
+      const header = ["word", ...fields];
+      const rows = [header];
+
+      unexported.forEach(wordObj => {
+        const row = [];
+        // Front side: word
+        row.push(csvEscape(wordObj.word || ""));
+        // Back side: selected fields
+        fields.forEach(field => {
+          let val = wordObj[field];
+          if (field === "meanings" && Array.isArray(val)) {
+            val = val.join("; ");
+          }
+          if (field === "hanjaMeanings" && Array.isArray(val)) {
+            val = val.map(h => `${h.char}: ${h.meaning}`).join("; ");
+          }
+          if (val === undefined || val === null || val === "") {
+            if (field === "definition") {
+              val = "Translation Error";
+            } else {
+              val = "";
+            }
+          }
+          row.push(csvEscape(val));
+        });
+        rows.push(row);
+      });
+
+      // CSV string
+      const csv = rows.map(r => r.join(",")).join("\r\n");
+
+      // Download CSV
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      a.href = url;
+      a.download = `exported_words_${timestamp}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+
+      // Mark exported words
+      words = words.map(w => {
+        if (!w.exported) w.exported = true;
+        return w;
+      });
+      chrome.storage.local.set({ savedWords: words });
     });
 
-    const csvContent = csvRows.join("\n");
-
-    // Download CSV
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'anki_export.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-
-    // Mark exported words
-    const updatedWords = words.map(w => ({ ...w, exported: true }));
-    chrome.storage.local.set({ savedWords: updatedWords }, () => {
-      console.log(`${newWords.length} words exported and marked as exported.`);
-    });
+    // Helper: escape quotes and commas for CSV
+    function csvEscape(val) {
+      if (typeof val !== "string") val = String(val);
+      if (val.includes('"') || val.includes(",") || val.includes("\n")) {
+        return '"' + val.replace(/"/g, '""') + '"';
+      }
+      return val;
+    }
   });
 });

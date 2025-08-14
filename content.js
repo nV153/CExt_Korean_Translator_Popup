@@ -5,7 +5,7 @@
 // Groq API endpoint and model config
 // Use global config object instead of import (Chrome extensions do not support import in content scripts unless type: module)
 const API_URL = window.API_URL || "https://api.groq.com/openai/v1/chat/completions";
-const API_KEY = window.API_KEY || "aaa";
+const API_KEY = window.API_KEY || "xxx";
 const MODEL = window.MODEL || "llama3-70b-8192";
 
 // Common headers for Groq API requests
