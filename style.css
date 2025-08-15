@@ -1,5 +1,21 @@
 /* ===================== OPTIONS PAGE STYLES ===================== */
 
+.word-attributes-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: 1fr 1fr;
+    gap: 8px 18px;
+    margin-bottom: 8px;
+        }
+
+    .word-attributes-grid label:nth-child(4) {
+        grid-column: 1 / span 1;
+        grid-row: 2;
+    }
+    .word-attributes-grid label:nth-child(5) {
+        grid-column: 2 / span 2;
+        grid-row: 2;
+    }
 
 .options-section {
     background: #f8f9fa;
@@ -124,11 +140,7 @@
     }
 }
 
-/*
-    style.css
-    Styles for the Korean Translator Popup Chrome extension UI.
-    Each section below is labeled for the popup's main components.
-*/
+
 
 /* Main popup container for word info and navigation */
 .word-popup {
@@ -177,6 +189,12 @@
     border-bottom: 3px solid transparent;
     transition: border-color 0.3s;
     font-size: 14px;
+}
+
+.word-highlighted {
+    background: #ffe066;
+    border-radius: 4px;
+    box-shadow: 0 0 2px #888;
 }
 
 

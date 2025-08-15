@@ -31,7 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
   exportHistoryDiv.innerHTML = `<h3>Export History</h3><ul id="export-history-list"></ul>`;
   container.parentElement.insertBefore(exportHistoryDiv, container.nextSibling);
 
-  // THEN add export history toggle button
+  // Add export history toggle button
   const showHistoryBtn = document.createElement("button");
   showHistoryBtn.id = "show-history-btn";
   showHistoryBtn.textContent = "Show Export History";
@@ -58,13 +58,24 @@ document.addEventListener("DOMContentLoaded", () => {
   filterDiv.innerHTML = `
     <h3>Word Attributes</h3>
     <p>Control which attributes are <strong>shown</strong> and <strong>saved</strong>:</p>
-    <label><input type="checkbox" id="show-importance"> Importance</label>
-    <label><input type="checkbox" id="show-hanja" style="margin-left:10px;"> Hanja</label>
-    <label><input type="checkbox" id="show-pronunciation" style="margin-left:10px;"> Pronunciation</label>
-    <label><input type="checkbox" id="show-partOfSpeech" style="margin-left:10px;"> Part of Speech</label>
-    <label><input type="checkbox" id="show-meanings" style="margin-left:10px;"> Meanings</label>
+    <div class="word-attributes-grid">
+      <label><input type="checkbox" id="show-importance"> Importance</label>
+      <label><input type="checkbox" id="show-hanja"> Hanja</label>
+      <label><input type="checkbox" id="show-pronunciation"> Pronunciation</label>
+      <label><input type="checkbox" id="show-partOfSpeech"> Part of Speech</label>
+      <label><input type="checkbox" id="show-meanings"> Meanings</label>
+    </div>
+    <!-- Word attributes end -->
+  `;
+  // Add 'Show Automatically' as a separate option below
+  const showAutoDiv = document.createElement("div");
+  showAutoDiv.className = "options-section";
+  showAutoDiv.innerHTML = `
+  <h3>Options</h3>
+  <label><input type="checkbox" id="show-automatically"> Show Automatically</label>
   `;
   container.parentElement.insertBefore(filterDiv, container);
+  filterDiv.parentElement.insertBefore(showAutoDiv, filterDiv.nextSibling);
 
   // Default settings if none saved yet
   const defaultSettings = {
@@ -73,6 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
     pronunciation: true,
     partOfSpeech: true,
     meanings: true
+  ,showAutomatically: false
   };
 
   // Load saved settings
@@ -85,6 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("show-pronunciation").checked = settings.pronunciation;
     document.getElementById("show-partOfSpeech").checked = settings.partOfSpeech;
     document.getElementById("show-meanings").checked = settings.meanings;
+    document.getElementById("show-automatically").checked = settings.showAutomatically;
   });
 
   // Save settings when checkboxes change
@@ -94,6 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
     "show-pronunciation",
     "show-partOfSpeech",
     "show-meanings"
+  ,"show-automatically"
   ].forEach(id => {
     document.getElementById(id).addEventListener("change", () => {
       const newSettings = {
@@ -102,6 +116,7 @@ document.addEventListener("DOMContentLoaded", () => {
         pronunciation: document.getElementById("show-pronunciation").checked,
         partOfSpeech: document.getElementById("show-partOfSpeech").checked,
         meanings: document.getElementById("show-meanings").checked
+    ,showAutomatically: document.getElementById("show-automatically").checked
       };
       chrome.storage.local.set({ saveSettings: newSettings });
     });
@@ -143,11 +158,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (settings.partOfSpeech && partOfSpeech !== undefined) displayHtml += `<strong>Part of Speech:</strong> ${partOfSpeech}<br>`;
         if (settings.meanings && meanings !== undefined) displayHtml += `<strong>Meanings:</strong> ${meanings}`;
 
-        // Navigation arrows
-        let navHtml = `<div style="margin:10px 0;">
+        // Navigation arrows and delete button
+        let navHtml = `<div style="margin:10px 0; display: flex; align-items: center; gap: 8px;">
           <button id="prev-word" ${index === 0 ? "disabled" : ""}>&larr; Prev</button>
           <span style="margin:0 12px;">${index + 1} / ${words.length}</span>
           <button id="next-word" ${index === words.length - 1 ? "disabled" : ""}>Next &rarr;</button>
+          <button id="delete-word" style="margin-left:auto; background:#e57373; color:#fff; border-radius:6px;">🗑️ Delete</button>
         </div>`;
 
         container.innerHTML = navHtml + `<div class="saved-word-card">${displayHtml}</div>`;
@@ -164,6 +180,19 @@ document.addEventListener("DOMContentLoaded", () => {
             currentIndex++;
             renderWord(currentIndex);
           }
+        });
+
+        // Add event listener for delete button
+        container.querySelector("#delete-word").addEventListener("click", () => {
+          words.splice(index, 1);
+          chrome.storage.local.set({ savedWords: words }, () => {
+            if (words.length === 0) {
+              container.textContent = "No saved words found.";
+            } else {
+              currentIndex = Math.max(0, Math.min(currentIndex, words.length - 1));
+              renderWord(currentIndex);
+            }
+          });
         });
       }
 

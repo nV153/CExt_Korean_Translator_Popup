@@ -5,7 +5,7 @@
 // Groq API endpoint and model config
 // Use global config object instead of import (Chrome extensions do not support import in content scripts unless type: module)
 const API_URL = window.API_URL || "https://api.groq.com/openai/v1/chat/completions";
-const API_KEY = window.API_KEY || "xxx";
+const API_KEY = window.API_KEY || "PLACEHOLDER_FOR_API_KEY"; // Replace with your actual API key
 const MODEL = window.MODEL || "llama3-70b-8192";
 
 // Common headers for Groq API requests
@@ -13,6 +13,61 @@ const headers = {
   "Content-Type": "application/json",
   "Authorization": `Bearer ${API_KEY}`
 };
+
+  
+  // Load showAutomatically setting
+  let showAutomatically = false;
+  chrome.storage.local.get({ saveSettings: {} }, (res) => {
+    showAutomatically = !!(res.saveSettings && res.saveSettings.showAutomatically);
+  });
+
+  // Helper to highlight a word in the DOM
+  function highlightSelection() {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+    const range = selection.getRangeAt(0);
+  // Highlighting removed
+  }
+
+  // Listen for mouseup to check for selection
+  document.addEventListener("mouseup", (e) => {
+    if (!showAutomatically) return;
+    setTimeout(() => {
+      const selection = window.getSelection();
+      if (selection && selection.toString().trim().length > 0) {
+        // Highlighting removed
+        showPopup(selection.toString());
+      }
+    }, 1000); // 1 second delay
+  });
+
+  // Listen for mouseover on words (for non-selection hover)
+  document.body.addEventListener("mouseover", (e) => {
+    if (!showAutomatically) return;
+    const target = e.target;
+    if (target.nodeType === 3 || !target.textContent || target.textContent.trim().split(/\s+/).length !== 1) return;
+    const word = target.textContent.trim();
+    // Only trigger for Korean words (Hangul/Hanja)
+    if (!/[\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F\u4E00-\u9FFF]+/.test(word)) return;
+    let hoverTimeout = target._hoverTimeout;
+    if (hoverTimeout) clearTimeout(hoverTimeout);
+    target._hoverTimeout = setTimeout(() => {
+      // Select the word in the DOM (simulate selection)
+      const range = document.createRange();
+      range.selectNodeContents(target);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      // Pass bounding rect to showPopup for positioning
+      const rect = target.getBoundingClientRect();
+      showPopup(word, rect);
+    }, 1000);
+    target.addEventListener("mouseout", () => {
+      clearTimeout(target._hoverTimeout);
+    }, { once: true });
+  });
+
+
 
 
 
@@ -24,16 +79,21 @@ function showPopup(selectedText) {
   removePopup(); // Remove any existing popup
   if (!selectedText) return;
 
-  const words = selectedText.trim().split(/\s+/);
-  if (words.length === 0) return;
-
+  let rect = null;
+  let words = [];
   let currentIndex = 0;
-
-  const selection = window.getSelection();
-  if (!selection.rangeCount) return;
-
-  const range = selection.getRangeAt(0);
-  const rect = range.getBoundingClientRect();
+  // If rect is passed, use it; otherwise, use selection
+  if (arguments.length > 1 && arguments[1]) {
+    rect = arguments[1];
+    words = selectedText.trim().split(/\s+/);
+  } else {
+    words = selectedText.trim().split(/\s+/);
+    if (words.length === 0) return;
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+    const range = selection.getRangeAt(0);
+    rect = range.getBoundingClientRect();
+  }
 
   const popup = document.createElement("div");
   popup.className = "word-popup";
@@ -80,15 +140,36 @@ function showPopup(selectedText) {
   const spaceOnRight = viewportWidth - rect.right;
   const spaceOnLeft = rect.left;
 
-  let top = window.scrollY + rect.top - 20;
-  let left;
-
-  if (spaceOnRight >= spaceOnLeft) {
-      left = window.scrollX + rect.right + 10;
+  // Position popup so it never covers the selected word
+  let top, left;
+  const popupHeight = 180; // estimate, adjust as needed
+  const popupWidth = 520; // match your CSS
+  const minDistance = 24; // minimum distance in px
+  // Vertical position: above or below word
+  if (rect.top > popupHeight + minDistance) {
+    top = window.scrollY + rect.top - popupHeight - minDistance;
   } else {
-      left = window.scrollX + rect.left - 520; // match your popup width in css (520px)
+    top = window.scrollY + rect.bottom + minDistance;
   }
-
+  // Horizontal position: left or right of word, based on available space
+  const spaceLeft = rect.left;
+  const spaceRight = window.innerWidth - rect.right;
+  if (spaceRight >= spaceLeft) {
+    // Place popup to the right of the word
+    left = window.scrollX + rect.right + minDistance;
+    // If not enough space, clamp to window
+    if (left + popupWidth > window.innerWidth) {
+      left = window.innerWidth - popupWidth - minDistance;
+    }
+  } else {
+    // Place popup to the left of the word, with extra separation
+    const extraLeftDistance = minDistance + 32; // increase separation when left
+    left = window.scrollX + rect.left - popupWidth - extraLeftDistance;
+    // If not enough space, clamp to window
+    if (left < 0) {
+      left = extraLeftDistance;
+    }
+  }
   popup.style.top = `${top}px`;
   popup.style.left = `${left}px`;
 
@@ -105,6 +186,7 @@ function showPopup(selectedText) {
 
   // Fetch full phrase translation once
   let fullTranslation = "Loading translation...";
+
   getTranslation(selectedText).then(translated => {
     fullTranslation = translated;
     updateTranslationTab(fullTranslation, translationDiv);
@@ -112,6 +194,13 @@ function showPopup(selectedText) {
     fullTranslation = "Error loading translation.";
     updateTranslationTab(fullTranslation, translationDiv);
   });
+
+  // Define updateTranslationTab to update the translation tab content
+  function updateTranslationTab(translation, container) {
+    if (container) {
+      container.textContent = translation;
+    }
+  }
 
 let currentDefinitionMsg = null;
 
@@ -192,7 +281,6 @@ let currentDefinitionMsg = null;
     });
   });
 
-  console.log("currentDefinitionMsg at save:", currentDefinitionMsg);
   const saveButton = popup.querySelector("#save-word-btn");
   if (saveButton) {
     saveButton.addEventListener("click", async () => {
@@ -308,17 +396,28 @@ let currentDefinitionMsg = null;
  */
 function removePopup() {
     document.querySelectorAll(".word-popup").forEach(el => el.remove());
+    // Remove highlight from all highlighted words
+    document.querySelectorAll('.word-highlighted').forEach(el => {
+      el.classList.remove('word-highlighted');
+    });
 }
 
 /**
  * Updates the translation tab with the given translation.
  * @param {string} translation
  * @param {HTMLElement} container
- */
-function updateTranslationTab(translation, container) {
-  container.textContent = translation;
-}
+  /**
+   * Removes all word popups from the page and removes highlight from any highlighted word.
+   */
 
+
+    // Remove highlight from all highlighted words
+    document.querySelectorAll('.word-highlighted').forEach(el => {
+      el.style.background = '';
+      el.style.borderRadius = '';
+      el.style.boxShadow = '';
+      el.classList.remove('word-highlighted');
+    });
 /**
  * Gets the translation for a word using Groq API (to German).
  * @param {string} word
@@ -383,6 +482,9 @@ let hanja = null
 async function updateDefinitionTab(word, container) {
   container.textContent = "Loading definition...";
   try {
+    if (!chrome.runtime || !chrome.runtime.sendMessage) {
+      throw new Error("chrome.runtime.sendMessage is not available. Are you running in Chrome extension context?");
+    }
     const response = await chrome.runtime.sendMessage({
       action: "getDefinition",
       word: word
